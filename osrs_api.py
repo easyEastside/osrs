@@ -1,16 +1,14 @@
 import platform
 import sys
-import ctypes
 
-# 1. Set Windows DPI awareness IMMEDIATELY before importing GUI/graphics libraries.
-# This prevents cached scaled coordinates by PyAutoGUI and Pillow.
 IS_WINDOWS = platform.system() == "Windows"
 IS_LINUX = platform.system() == "Linux"
 
+# 1. Set Windows DPI awareness IMMEDIATELY before importing GUI/graphics libraries.
 if IS_WINDOWS:
+    import ctypes
     try:
-        # Set process as DPI aware so that Windows returns true physical coordinates
-        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
     except Exception:
         try:
             ctypes.windll.user32.SetProcessDPIAware()
@@ -28,10 +26,10 @@ import human_mouse
 import subprocess
 import re
 
+# Platform-specific imports
 if IS_WINDOWS:
     import win32gui
     import win32con
-    import win32process
     import pygetwindow as gw
 
 # ==============================================================================
@@ -67,7 +65,6 @@ class ContourManager:
         if IS_WINDOWS:
             windows = gw.getWindowsWithTitle(self.window_title)
             if not windows:
-                # Fallback to case-insensitive match
                 all_wins = gw.getAllWindows()
                 windows = [w for w in all_wins if self.window_title.lower() in w.title.lower()]
                 
@@ -76,7 +73,6 @@ class ContourManager:
             return None
             
         elif IS_LINUX:
-            # Try using xdotool search
             try:
                 out = subprocess.check_output(
                     ["xdotool", "search", "--onlyvisible", "--name", self.window_title],
@@ -88,14 +84,13 @@ class ContourManager:
             except Exception:
                 pass
             
-            # Fallback to wmctrl
             try:
                 out = subprocess.check_output(["wmctrl", "-l"], stderr=subprocess.DEVNULL).decode()
                 for line in out.splitlines():
                     if self.window_title.lower() in line.lower():
                         parts = line.split(None, 3)
                         if parts:
-                            return parts[0]  # Hex window ID
+                            return parts[0]
             except Exception:
                 pass
             return None
@@ -115,20 +110,16 @@ class ContourManager:
             
         if IS_WINDOWS:
             try:
-                # If minimized, restore it
                 if win32gui.IsIconic(hwnd):
                     win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
                 else:
                     win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
                     
-                # Bring to foreground (with bypass for SetForegroundWindow locks)
-                # We simulate an ALT key press which resets the foreground lock
                 import win32com.client
                 shell = win32com.client.Dispatch("WScript.Shell")
-                shell.SendKeys('%')  # Send ALT
+                shell.SendKeys('%')
                 
                 win32gui.SetForegroundWindow(hwnd)
-                # Wait for window repaint
                 time.sleep(random.uniform(0.5, 0.8))
                 return True
             except Exception as e:
@@ -143,14 +134,12 @@ class ContourManager:
                     
         elif IS_LINUX:
             try:
-                # Try with xdotool
                 subprocess.check_call(["xdotool", "windowactivate", hwnd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 time.sleep(random.uniform(0.5, 0.8))
                 return True
             except Exception:
                 pass
             try:
-                # Fallback to wmctrl
                 subprocess.check_call(["wmctrl", "-i", "-a", hwnd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 time.sleep(random.uniform(0.5, 0.8))
                 return True
@@ -177,7 +166,6 @@ class ContourManager:
                 return None
                 
         elif IS_LINUX:
-            # Try to get window geometry from xdotool
             try:
                 out = subprocess.check_output(["xdotool", "getwindowgeometry", hwnd], stderr=subprocess.DEVNULL).decode()
                 pos_match = re.search(r"Position:\s*(\d+),(\d+)", out)
@@ -189,7 +177,6 @@ class ContourManager:
             except Exception:
                 pass
                 
-            # Fallback to xwininfo
             try:
                 out = subprocess.check_output(["xwininfo", "-id", hwnd], stderr=subprocess.DEVNULL).decode()
                 x_match = re.search(r"Absolute upper-left X:\s*(\d+)", out)
