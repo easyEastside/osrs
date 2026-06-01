@@ -2,7 +2,7 @@ import sys
 import time
 import random
 import cv2
-from osrs_api import ContourManager
+from modules.osrs_api import ContourManager
 
 def print_menu():
     print("\n" + "=" * 60)

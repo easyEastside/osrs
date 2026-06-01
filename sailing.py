@@ -1,6 +1,6 @@
 import random
 import pyautogui
-import osrs_api as api
+import modules.osrs_api as api
 import time
 
 def run_sequence():

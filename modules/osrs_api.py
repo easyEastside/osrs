@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 from PIL import ImageGrab
 import pyautogui
-import human_mouse
+from . import human_mouse
 import subprocess
 import re
 

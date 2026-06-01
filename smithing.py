@@ -1,7 +1,8 @@
 import random
 import time
 import pyautogui
-import osrs_api as api
+import modules.osrs_api as api
+
 def run_sequence():
     # 1. Spielfenster fokussieren und API starten
     # (Trage hier deinen genauen Fenstertitel ein, falls er abweicht, z.B. "RuneLite - Freund")
