@@ -25,7 +25,7 @@ def run_sequence():
         elif time.time() - last_change > 30:
             print("[!] Timeout: 30 Sekunden keine Änderung.")
             break
-        api.sleep(random.uniform(1, 5))
+        time.sleep(random.uniform(1, 5))
 
     print("[+] Sequenz erfolgreich beendet!")
 

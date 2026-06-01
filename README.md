@@ -51,8 +51,7 @@ osrs_api.click_all("yellow")
 # Wait for a red contour to appear
 osrs_api.wait_for("red", timeout=30.0)
 
-# Custom sleep with idle simulation
-osrs_api.sleep(5.0)
+
 ```
 
 ## Available Colors
@@ -73,7 +72,7 @@ osrs_api.sleep(5.0)
 - `count(color)` - Count visible contours of a color
 - `wait_for(color, timeout=30.0)` - Wait for a contour to appear
 - `wait_for_disappear(color, timeout=30.0)` - Wait for contours to disappear
-- `sleep(duration)` - Sleep with idle simulation
+
 
 ## Advanced Usage
 

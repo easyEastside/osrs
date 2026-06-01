@@ -434,7 +434,7 @@ class ContourManager:
                 print(f"[-] Kontur {i+1} fehlgeschlagen.")
             
             if delay_between_clicks > 0 and i < total - 1:
-                self.sleep(delay_between_clicks)
+                time.sleep(delay_between_clicks)
         
         print(f"[+] {clicked}/{total} Konturen erfolgreich geklickt.")
         return clicked
@@ -490,17 +490,6 @@ class ContourManager:
             # Keep cursor within window bounds
             if left <= jx <= right and top <= jy <= bottom:
                 pyautogui.moveTo(jx, jy)
-
-    def sleep(self, duration):
-        """
-        Custom sleep function that blocks for the given duration,
-        but dynamically runs human idle behavior (jitter, neutral movements)
-        instead of keeping the mouse completely frozen.
-        """
-        start_time = time.time()
-        while time.time() - start_time < duration:
-            self.simulate_idle()
-            time.sleep(0.1)
 
     def wait_for_contour(self, color, min_area=15, timeout=30.0, check_interval=0.2):
         """
@@ -635,13 +624,4 @@ def wait_for_disappear(color, timeout=30.0):
         return False
     return _manager.wait_for_contour_to_disappear(color, timeout=timeout)
 
-def sleep(duration):
-    """
-    Pausiert das Skript für die angegebene Dauer (in Sekunden).
-    Simuliert während des Wartens natürliche menschliche Mikro-Mausbewegungen (Zittern, Atmen),
-    anstatt den Cursor komplett einzufrieren.
-    """
-    if _manager is not None:
-        _manager.sleep(duration)
-    else:
-        time.sleep(duration)
+

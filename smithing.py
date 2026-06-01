@@ -1,4 +1,5 @@
 import random
+import time
 import pyautogui
 import osrs_api as api
 import cursor_overlay
@@ -13,20 +14,20 @@ def run_sequence():
 
     # click_first_contour(*GREEN)
     api.click("green")
-    api.sleep(random.uniform(0.3, 0.7))
+    time.sleep(random.uniform(0.3, 0.7))
 
     # click_first_contour(*PINK)
     # ("pink" ist als Alias für "magenta" hinterlegt)
     api.click("pink")
-    api.sleep(random.uniform(0.3, 0.7))
+    time.sleep(random.uniform(0.3, 0.7))
 
     # click_first_contour(*YELLOW)
     api.click("yellow")
-    api.sleep(random.uniform(0.3, 0.7))
+    time.sleep(random.uniform(0.3, 0.7))
 
     # time.sleep(random.uniform(4.5, 5.5))
     print("[*] Warte ~5 Sekunden (mit natürlicher Mausaktivität)...")
-    api.sleep(random.uniform(5.5, 6.5))
+    time.sleep(random.uniform(5.5, 6.5))
 
     # pyautogui.press('space')
     print("[*] Sende Tastendruck: LEERTASTE")
@@ -37,7 +38,7 @@ def run_sequence():
     print("[*] Warte, bis alle roten Konturen verschwunden sind...")
     while api.count("red") > 0:
         print(f"  -> Rote Konturen sind noch da ({api.count('red')}). Warte...")
-        api.sleep(random.uniform(0.7, 1.2))
+        time.sleep(random.uniform(0.7, 1.2))
     print("[+] Alle roten Konturen sind verschwunden.")
 
     # click_first_contour(*BLUE)
@@ -45,7 +46,7 @@ def run_sequence():
     
     # time.sleep(random.uniform(4.5, 5.5))
     print("[*] Warte ~5 Sekunden (mit natürlicher Mausaktivität)...")
-    api.sleep(random.uniform(5.5, 6.5))
+    time.sleep(random.uniform(5.5, 6.5))
     
     print("[+] Sequenz erfolgreich beendet!")
 
