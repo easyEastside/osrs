@@ -318,12 +318,8 @@ class ContourManager:
             target_rgb = np.array([bgr[2], bgr[1], bgr[0]])
             
             # Check if any pixel in the neighborhood matches the target color
-            for row in img_np:
-                for pixel in row:
-                    dist = np.linalg.norm(pixel - target_rgb)
-                    if dist <= tolerance:
-                        return True
-            return False
+            diffs = np.linalg.norm(img_np - target_rgb, axis=2)
+            return bool(np.any(diffs <= tolerance))
         except Exception as e:
             print(f"[!] Error verifying color at mouse: {e}")
             return False
@@ -546,6 +542,9 @@ def start(window_title="RuneLite"):
     Gibt True zurück, wenn das Fenster gefunden und fokussiert wurde.
     """
     global _manager
+    if _manager is not None:
+        print(f"[*] OSRS-API läuft bereits für Fenster. Überspringe Initialisierung.")
+        return _manager.focus_window()
     _manager = ContourManager(window_title=window_title)
     success = _manager.focus_window()
     if success:

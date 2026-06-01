@@ -1,6 +1,7 @@
 import sys
 import time
 import random
+import cv2
 from osrs_api import ContourManager
 
 def print_menu():
@@ -17,19 +18,23 @@ def print_menu():
     print("=" * 60)
 
 def choose_color():
+    seen = set()
+    color_names = []
+    for name, bgr in ContourManager.COLOR_MAP.items():
+        if tuple(bgr) not in seen:
+            seen.add(tuple(bgr))
+            color_names.append(name)
+
     print("\nVerfügbare Farben:")
-    print("  - blue    (Blau / z.B. Objekte/NPCs)")
-    print("  - green   (Grün / z.B. Kachelmarkierung)")
-    print("  - magenta (Pink / z.B. Kachelmarkierung)")
-    print("  - yellow  (Gelb / z.B. Aktive Objekte)")
-    print("  - red     (Rot / z.B. Inventargegenstände)")
+    for name in color_names:
+        print(f"  - {name}")
     while True:
         color = input("Farbe eingeben (oder 'zurück'): ").strip().lower()
         if color == 'zurück':
             return None
-        if color in ['blue', 'green', 'magenta', 'yellow', 'red']:
+        if color in ContourManager.COLOR_MAP:
             return color
-        print("[!] Ungültige Farbe. Bitte wähle aus: blue, green, magenta, yellow, red")
+        print(f"[!] Ungültige Farbe. Bitte wähle aus: {', '.join(color_names)}")
 
 def main():
     # Initialisiere den ContourManager. Standard-Fenstername ist "RuneLite"
@@ -60,9 +65,6 @@ def main():
                         if len(contours) > 0:
                             print(f"  -> {color.upper()}: {len(contours)} Konturen gefunden")
                             for idx, cnt in enumerate(contours):
-                                area = int(manager.cv2.contourArea(cnt) if hasattr(manager, 'cv2') else 0)
-                                # Fallback if cv2 check is not direct
-                                import cv2
                                 area = int(cv2.contourArea(cnt))
                                 print(f"     - Kontur {idx+1}: Fläche = {area} px")
                         else:
