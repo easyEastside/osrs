@@ -96,6 +96,25 @@ def move_to(target_x, target_y, min_steps=10):
         else:
             time.sleep(random.uniform(0.001, 0.004))
 
+def fast_move_to(target_x, target_y):
+    """
+    Moves the cursor to target coordinates at a moderate speed (~2-3 actions/sec).
+    """
+    start_x, start_y = pyautogui.position()
+    
+    if start_x == target_x and start_y == target_y:
+        return
+        
+    path = wind_mouse(start_x, start_y, target_x, target_y, G_0=18.0, W_0=0.8, M_0=10.0, D_0=4.0)
+    
+    for idx, (x, y) in enumerate(path):
+        pyautogui.moveTo(x, y)
+        remaining_dist = len(path) - idx
+        if remaining_dist < 5:
+            time.sleep(random.uniform(0.008, 0.018))
+        else:
+            time.sleep(random.uniform(0.005, 0.015))
+
 def click(button='left'):
     """
     Simulates a human-like mouse click.
@@ -114,3 +133,13 @@ def click(button='left'):
     
     # Small reaction delay after clicking
     time.sleep(random.uniform(0.05, 0.15))
+
+def fast_click(button='left'):
+    """
+    Simulates a moderate-speed mouse click (~2-3 clicks per second).
+    """
+    time.sleep(random.uniform(0.08, 0.15))
+    pyautogui.mouseDown(button=button)
+    time.sleep(random.uniform(0.06, 0.12))
+    pyautogui.mouseUp(button=button)
+    time.sleep(random.uniform(0.08, 0.15))
