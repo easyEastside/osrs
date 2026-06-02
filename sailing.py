@@ -12,6 +12,8 @@ def run_sequence():
     if api.count("pink") == 28:
         api.click_all("pink")
     
+    time.sleep(random.uniform(0.2, 0.5))
+    
     api.click("red")
 
     last_count = api.count("pink")
