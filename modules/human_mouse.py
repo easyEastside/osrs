@@ -71,75 +71,77 @@ def wind_mouse(start_x, start_y, target_x, target_y, G_0=9.0, W_0=3.0, M_0=15.0,
     points.append((target_x, target_y))
     return points
 
+def _run_mouse_action(action):
+    try:
+        action()
+    except pyautogui.FailSafeException:
+        print("[!] PyAutoGUI Failsafe: Maus in eine Bildschirmecke bewegt – Abbruch.")
+        raise
+    except Exception as e:
+        print(f"[!] Mausaktion fehlgeschlagen: {e}")
+
+
 def move_to(target_x, target_y, min_steps=10):
-    """
-    Moves the cursor to target_x, target_y using the wind_mouse algorithm.
-    """
+    """Moves the cursor to target_x, target_y using the wind_mouse algorithm."""
     start_x, start_y = pyautogui.position()
-    
-    # If already at target, return
     if start_x == target_x and start_y == target_y:
         return
-        
+
     path = wind_mouse(start_x, start_y, target_x, target_y)
-    
-    # Smoothly move through path points
-    for idx, (x, y) in enumerate(path):
-        pyautogui.moveTo(x, y)
-        
-        # Simulate realistic mouse polls (around 125-1000Hz refresh rate)
-        # Slower movement near the target
-        remaining_dist = len(path) - idx
-        if remaining_dist < 15:
-            # Slower at the end for accuracy
-            time.sleep(random.uniform(0.005, 0.012))
-        else:
-            time.sleep(random.uniform(0.001, 0.004))
+
+    def _do_move():
+        for idx, (x, y) in enumerate(path):
+            pyautogui.moveTo(x, y)
+            remaining_dist = len(path) - idx
+            if remaining_dist < 15:
+                time.sleep(random.uniform(0.005, 0.012))
+            else:
+                time.sleep(random.uniform(0.001, 0.004))
+
+    _run_mouse_action(_do_move)
+
 
 def fast_move_to(target_x, target_y):
-    """
-    Moves the cursor to target coordinates at a moderate speed (~2-3 actions/sec).
-    """
+    """Moves the cursor at moderate speed (~2-3 actions/sec)."""
     start_x, start_y = pyautogui.position()
-    
     if start_x == target_x and start_y == target_y:
         return
-        
+
     path = wind_mouse(start_x, start_y, target_x, target_y, G_0=18.0, W_0=0.8, M_0=10.0, D_0=4.0)
-    
-    for idx, (x, y) in enumerate(path):
-        pyautogui.moveTo(x, y)
-        remaining_dist = len(path) - idx
-        if remaining_dist < 5:
-            time.sleep(random.uniform(0.008, 0.018))
-        else:
-            time.sleep(random.uniform(0.005, 0.015))
 
-def click(button='left'):
-    """
-    Simulates a human-like mouse click.
-    """
-    # Small reaction delay before pressing down
-    time.sleep(random.uniform(0.02, 0.08))
-    
-    # Press down
-    pyautogui.mouseDown(button=button)
-    
-    # Click duration (how long the mouse key is held down, typically 50ms - 150ms for humans)
-    time.sleep(random.uniform(0.06, 0.14))
-    
-    # Release
-    pyautogui.mouseUp(button=button)
-    
-    # Small reaction delay after clicking
-    time.sleep(random.uniform(0.05, 0.15))
+    def _do_move():
+        for idx, (x, y) in enumerate(path):
+            pyautogui.moveTo(x, y)
+            remaining_dist = len(path) - idx
+            if remaining_dist < 5:
+                time.sleep(random.uniform(0.008, 0.018))
+            else:
+                time.sleep(random.uniform(0.005, 0.015))
 
-def fast_click(button='left'):
-    """
-    Simulates a moderate-speed mouse click (~2-3 clicks per second).
-    """
-    time.sleep(random.uniform(0.08, 0.15))
-    pyautogui.mouseDown(button=button)
-    time.sleep(random.uniform(0.06, 0.12))
-    pyautogui.mouseUp(button=button)
-    time.sleep(random.uniform(0.08, 0.15))
+    _run_mouse_action(_do_move)
+
+
+def click(button="left"):
+    """Simulates a human-like mouse click."""
+
+    def _do_click():
+        time.sleep(random.uniform(0.02, 0.08))
+        pyautogui.mouseDown(button=button)
+        time.sleep(random.uniform(0.06, 0.14))
+        pyautogui.mouseUp(button=button)
+        time.sleep(random.uniform(0.05, 0.15))
+
+    _run_mouse_action(_do_click)
+
+
+def fast_click(button="left"):
+    """Simulates a moderate-speed mouse click."""
+
+    def _do_click():
+        time.sleep(random.uniform(0.08, 0.15))
+        pyautogui.mouseDown(button=button)
+        time.sleep(random.uniform(0.06, 0.12))
+        pyautogui.mouseUp(button=button)
+        time.sleep(random.uniform(0.08, 0.15))
+
+    _run_mouse_action(_do_click)

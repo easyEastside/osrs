@@ -1,6 +1,6 @@
 import random
 import pyautogui
-import modules.osrs_api as api
+import modules.osrs_color as api
 import time
 
 def run_sequence():
@@ -10,11 +10,15 @@ def run_sequence():
     print("[*] Starte vereinfachte Sequenz...")
 
     if api.count("pink") == 28:
-        api.click_all("pink")
+        clicked = api.click_all("pink")
+        if clicked == 0:
+            print("[!] click_all('pink') hat nichts geklickt.")
     
     time.sleep(random.uniform(0.2, 0.5))
     
-    api.click("red")
+    if not api.click("red"):
+        print("[!] Klick auf 'red' fehlgeschlagen.")
+        return
 
     last_count = api.count("pink")
     last_change = time.time()

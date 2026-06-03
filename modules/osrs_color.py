@@ -1,225 +1,45 @@
-import platform
-import sys
-
-IS_WINDOWS = platform.system() == "Windows"
-IS_LINUX = platform.system() == "Linux"
-
-# 1. Set Windows DPI awareness IMMEDIATELY before importing GUI/graphics libraries.
-if IS_WINDOWS:
-    import ctypes
-    try:
-        ctypes.windll.shcore.SetProcessDpiAwareness(2)
-    except Exception:
-        try:
-            ctypes.windll.user32.SetProcessDPIAware()
-        except Exception:
-            pass
-
-# 2. Import standard and external libraries
 import time
 import random
 import cv2
 import numpy as np
 from PIL import ImageGrab
 import pyautogui
-from . import human_mouse
-import subprocess
-import re
 
-# Platform-specific imports
-if IS_WINDOWS:
-    import win32gui
-    import win32con
-    import pygetwindow as gw
+from . import human_mouse
+from .window_client import WindowClient
 
 # ==============================================================================
-# 3. ADVANCED CLASS INTERFACE: ContourManager
+# ContourManager
 # ==============================================================================
 class ContourManager:
     """
-    Manages OSRS RuneLite client interaction by focusing the window,
-    detecting solid colored contours, and clicking them using human-like movements.
-    Cross-platform support for Windows and Linux.
+    Erkennt farbige Konturen im RuneLite-Client und klickt sie menschlich an.
     """
-    
-    # Predefined colors in BGR format
+
     COLOR_MAP = {
         "blue": [255, 0, 0],
         "green": [0, 255, 0],
         "magenta": [255, 0, 255],
         "pink": [255, 0, 255],
         "yellow": [0, 255, 255],
-        "red": [0, 0, 255]
+        "red": [0, 0, 255],
     }
-    
-    def __init__(self, window_title="RuneLite"):
-        self.window_title = window_title
-        
-    def find_window(self):
-        """
-        Finds the window matching window_title (case-insensitive partial match).
-        Returns:
-            On Windows: HWND (int) or None
-            On Linux: Window ID (str) or None
-        """
-        if IS_WINDOWS:
-            windows = gw.getWindowsWithTitle(self.window_title)
-            if not windows:
-                all_wins = gw.getAllWindows()
-                windows = [w for w in all_wins if self.window_title.lower() in w.title.lower()]
-                
-            if windows:
-                return windows[0]._hWnd
-            return None
-            
-        elif IS_LINUX:
-            try:
-                out = subprocess.check_output(
-                    ["xdotool", "search", "--onlyvisible", "--name", self.window_title],
-                    stderr=subprocess.DEVNULL
-                ).decode().strip()
-                ids = out.split()
-                if ids:
-                    return ids[0]
-            except Exception:
-                pass
-            
-            try:
-                out = subprocess.check_output(["wmctrl", "-l"], stderr=subprocess.DEVNULL).decode()
-                for line in out.splitlines():
-                    if self.window_title.lower() in line.lower():
-                        parts = line.split(None, 3)
-                        if parts:
-                            return parts[0]
-            except Exception:
-                pass
-            return None
-            
-        else:
-            print(f"[!] Unsupported operating system: {platform.system()}")
-            return None
-        
+
+    def __init__(self, client=None, window_title="RuneLite"):
+        self._client = client or WindowClient(window_title=window_title)
+
     def focus_window(self):
-        """
-        Brings the RuneLite window to the foreground and focuses it.
-        """
-        hwnd = self.find_window()
-        if not hwnd:
-            print(f"[!] Window containing '{self.window_title}' not found.")
-            return False
-            
-        if IS_WINDOWS:
-            try:
-                if win32gui.IsIconic(hwnd):
-                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                else:
-                    win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
-                    
-                import win32com.client
-                shell = win32com.client.Dispatch("WScript.Shell")
-                shell.SendKeys('%')
-                
-                win32gui.SetForegroundWindow(hwnd)
-                time.sleep(random.uniform(0.5, 0.8))
-                return True
-            except Exception as e:
-                print(f"[!] Error focusing window: {e}")
-                try:
-                    win32gui.SetForegroundWindow(hwnd)
-                    time.sleep(random.uniform(0.5, 0.8))
-                    return True
-                except Exception as e2:
-                    print(f"[!] Fallback focus also failed: {e2}")
-                    return False
-                    
-        elif IS_LINUX:
-            try:
-                subprocess.check_call(["xdotool", "windowactivate", hwnd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                time.sleep(random.uniform(0.5, 0.8))
-                return True
-            except Exception:
-                pass
-            try:
-                subprocess.check_call(["wmctrl", "-i", "-a", hwnd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                time.sleep(random.uniform(0.5, 0.8))
-                return True
-            except Exception as e:
-                print(f"[!] Error focusing window on Linux: {e}")
-                return False
-        return False
-                
+        return self._client.focus_window()
+
+    def find_window(self):
+        return self._client.find_window()
+
     def get_client_rect(self):
-        """
-        Returns the client area rectangle in screen coordinates: (left, top, right, bottom)
-        """
-        hwnd = self.find_window()
-        if not hwnd:
-            return None
-            
-        if IS_WINDOWS:
-            try:
-                left, top = win32gui.ClientToScreen(hwnd, (0, 0))
-                _, _, width, height = win32gui.GetClientRect(hwnd)
-                return (left, top, left + width, top + height)
-            except Exception as e:
-                print(f"[!] Error getting client rect: {e}")
-                return None
-                
-        elif IS_LINUX:
-            try:
-                out = subprocess.check_output(["xdotool", "getwindowgeometry", hwnd], stderr=subprocess.DEVNULL).decode()
-                pos_match = re.search(r"Position:\s*(\d+),(\d+)", out)
-                geom_match = re.search(r"Geometry:\s*(\d+)x(\d+)", out)
-                if pos_match and geom_match:
-                    left, top = int(pos_match.group(1)), int(pos_match.group(2))
-                    width, height = int(geom_match.group(1)), int(geom_match.group(2))
-                    return (left, top, left + width, top + height)
-            except Exception:
-                pass
-                
-            try:
-                out = subprocess.check_output(["xwininfo", "-id", hwnd], stderr=subprocess.DEVNULL).decode()
-                x_match = re.search(r"Absolute upper-left X:\s*(\d+)", out)
-                y_match = re.search(r"Absolute upper-left Y:\s*(\d+)", out)
-                w_match = re.search(r"Width:\s*(\d+)", out)
-                h_match = re.search(r"Height:\s*(\d+)", out)
-                if x_match and y_match and w_match and h_match:
-                    left = int(x_match.group(1))
-                    top = int(y_match.group(1))
-                    width = int(w_match.group(1))
-                    height = int(h_match.group(1))
-                    return (left, top, left + width, top + height)
-            except Exception as e:
-                print(f"[!] Error getting window geometry on Linux: {e}")
-                
-            return None
-        return None
-            
+        return self._client.get_client_rect()
+
     def capture_client_area(self):
-        """
-        Captures the client area of the window.
-        Returns:
-            img: OpenCV BGR image of the client area
-            offset: (left, top) screen coordinate offset of the client area
-        """
-        rect = self.get_client_rect()
-        if not rect:
-            return None, (0, 0)
-            
-        left, top, right, bottom = rect
-        width = right - left
-        height = bottom - top
-        
-        if width <= 0 or height <= 0:
-            return None, (0, 0)
-            
-        # Take screen capture using Pillow
-        screenshot = ImageGrab.grab(bbox=(left, top, right, bottom))
-        
-        # Convert RGB (Pillow) to BGR (OpenCV)
-        img = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
-        return img, (left, top)
-        
+        return self._client.capture_client_area()
+
     def _get_color_bgr(self, color_name_or_bgr):
         """
         Helper to convert color name (string) or BGR list to BGR list.
@@ -407,31 +227,27 @@ class ContourManager:
         
     def click_all_contours(self, color, min_area=15, delay_between_clicks=0.0):
         """
-        Klickt alle aktuell sichtbaren Konturen einer Farbe nacheinander an.
-        Verwendet Fast-Mode (minimale Verzögerungen, keine Farbprüfung) für ~3-4 Klicks pro Sekunde.
-        Nach jedem Klick wird der Bildschirm neu erfasst, um Änderungen zu erkennen.
+        Klickt alle beim Start sichtbaren Konturen nacheinander an (eine Erkennung, dann Fast-Mode).
         Gibt die Anzahl der erfolgreich geklickten Konturen zurück.
         """
         contours, offset = self.get_contours_on_screen(color, min_area)
         if not contours:
             print(f"[-] Keine Konturen der Farbe '{color}' gefunden.")
             return 0
-        
+
         total = len(contours)
         print(f"[+] {total} Konturen der Farbe '{color}' gefunden. Klicke alle an...")
-        
+
         clicked = 0
         for i, contour in enumerate(contours):
             print(f"[*] Klicke Kontur {i+1}/{total}...")
-            success = self.click_contour(contour, color, offset, fast_mode=True)
-            if success:
+            if self.click_contour(contour, color, offset, fast_mode=True):
                 clicked += 1
             else:
                 print(f"[-] Kontur {i+1} fehlgeschlagen.")
-            
             if delay_between_clicks > 0 and i < total - 1:
                 time.sleep(delay_between_clicks)
-        
+
         print(f"[+] {clicked}/{total} Konturen erfolgreich geklickt.")
         return clicked
         
@@ -444,53 +260,10 @@ class ContourManager:
             return [], (0, 0)
         contours = self.find_contours(img, color, min_area)
         return contours, offset
-        
-    def simulate_idle(self):
-        """
-        Simulates natural human idle behavior.
-        Only runs if the mouse cursor is currently inside the RuneLite client window.
-        - 2% chance to move the mouse to a random neutral spot inside the window.
-        - 6% chance to perform a subtle micro-jitter (trembling/breathing).
-        """
-        rect = self.get_client_rect()
-        if not rect:
-            return
-            
-        left, top, right, bottom = rect
-        x, y = pyautogui.position()
-        
-        # Only simulate idle if the mouse is currently inside the game window
-        if not (left <= x <= right and top <= y <= bottom):
-            return
-            
-        roll = random.random()
-        
-        if roll < 0.02:  # 2% chance per check to move to a neutral zone
-            width = right - left
-            height = bottom - top
-            
-            # Inner safe region to avoid hitting window borders or the minimap
-            margin_w = int(width * 0.15)
-            margin_h = int(height * 0.15)
-            
-            nx = random.randint(left + margin_w, right - margin_w)
-            ny = random.randint(top + margin_h, bottom - margin_h)
-            
-            print(f"[*] Simuliere menschliche Untätigkeit: Maus wird in neutrale Zone bewegt...")
-            human_mouse.move_to(nx, ny)
-            
-        elif roll < 0.08:  # 6% chance to perform subtle hand trembling
-            jx = x + random.choice([-2, -1, 1, 2])
-            jy = y + random.choice([-2, -1, 1, 2])
-            
-            # Keep cursor within window bounds
-            if left <= jx <= right and top <= jy <= bottom:
-                pyautogui.moveTo(jx, jy)
 
     def wait_for_contour(self, color, min_area=15, timeout=30.0, check_interval=0.2):
         """
         Blocks and waits until at least one contour of the specified color appears.
-        Simulates natural human idle behavior while waiting.
         Returns the list of contours and the client offset when found, or ([], (0,0)) on timeout.
         """
         start_time = time.time()
@@ -500,9 +273,7 @@ class ContourManager:
             if len(contours) > 0:
                 print(f"[+] Found {len(contours)} contours of '{color}' after {time.time() - start_time:.2f}s.")
                 return contours, offset
-            
-            # Run human idle simulation
-            self.simulate_idle()
+
             time.sleep(check_interval)
             
         print(f"[-] Timeout: No '{color}' contour appeared within {timeout}s.")
@@ -511,7 +282,6 @@ class ContourManager:
     def wait_for_contour_to_disappear(self, color, min_area=15, timeout=30.0, check_interval=0.2):
         """
         Blocks and waits until all contours of the specified color disappear.
-        Simulates natural human idle behavior while waiting.
         Returns True if they disappeared, False on timeout.
         """
         start_time = time.time()
@@ -521,9 +291,7 @@ class ContourManager:
             if len(contours) == 0:
                 print(f"[+] All '{color}' contours disappeared after {time.time() - start_time:.2f}s.")
                 return True
-                
-            # Run human idle simulation
-            self.simulate_idle()
+
             time.sleep(check_interval)
             
         print(f"[-] Timeout: '{color}' contours did not disappear within {timeout}s.")
@@ -535,22 +303,26 @@ class ContourManager:
 # ==============================================================================
 _manager = None
 
-def start(window_title="RuneLite"):
+
+def _get_manager():
+    global _manager
+    from . import osrs_session
+    from .api_helpers import require_manager
+
+    _manager = require_manager(osrs_session.get_contour_manager)
+    return _manager
+
+
+def start(window_title="RuneLite", tesseract_cmd=None):
     """
-    Sucht das RuneLite-Fenster, bringt es in den Vordergrund und initialisiert die API.
-    Muss einmal am Anfang aufgerufen werden.
-    Gibt True zurück, wenn das Fenster gefunden und fokussiert wurde.
+    Startet die gemeinsame OSRS-Session (Fenster) und bindet die Kontur-API.
+    tesseract_cmd wird für spätere OCR-Nutzung in derselben Session gespeichert.
     """
     global _manager
-    if _manager is not None:
-        print(f"[*] OSRS-API läuft bereits für Fenster. Überspringe Initialisierung.")
-        return _manager.focus_window()
-    _manager = ContourManager(window_title=window_title)
-    success = _manager.focus_window()
-    if success:
-        print(f"[+] OSRS-API erfolgreich gestartet für Fenster: '{window_title}'")
-    else:
-        print(f"[!] OSRS-API Warnung: Fenster '{window_title}' konnte nicht fokussiert werden.")
+    from . import osrs_session
+
+    success = osrs_session.start(window_title, tesseract_cmd=tesseract_cmd)
+    _manager = _get_manager()
     return success
 
 def click(color, index=0):
@@ -559,12 +331,12 @@ def click(color, index=0):
     am gewünschten Index (Standard: 0 = die erste gefundene Kontur).
     Gibt True zurück bei erfolgreichem Klick, andernfalls False.
     """
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    contours, offset = _manager.get_contours_on_screen(color)
+    contours, offset = mgr.get_contours_on_screen(color)
     if contours and len(contours) > index:
-        return _manager.click_contour(contours[index], color, offset)
+        return mgr.click_contour(contours[index], color, offset)
     return False
 
 def click_random(color):
@@ -572,13 +344,13 @@ def click_random(color):
     Sucht nach allen Konturen der angegebenen Farbe und klickt auf eine zufällig ausgewählte Kontur.
     Gibt True zurück bei erfolgreichem Klick, andernfalls False.
     """
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    contours, offset = _manager.get_contours_on_screen(color)
+    contours, offset = mgr.get_contours_on_screen(color)
     if contours:
         cnt = random.choice(contours)
-        return _manager.click_contour(cnt, color, offset)
+        return mgr.click_contour(cnt, color, offset)
     return False
 
 def click_all(color, delay_between_clicks=0.0):
@@ -587,40 +359,39 @@ def click_all(color, delay_between_clicks=0.0):
     Verwendet Fast-Mode für ~3-4 Klicks pro Sekunde.
     Gibt die Anzahl der erfolgreich geklickten Konturen zurück.
     """
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return 0
-    return _manager.click_all_contours(color, delay_between_clicks=delay_between_clicks)
+    return mgr.click_all_contours(color, delay_between_clicks=delay_between_clicks)
 
 def count(color):
     """
     Gibt die Anzahl der aktuell auf dem Bildschirm sichtbaren Konturen dieser Farbe zurück.
     """
-    if _manager is None:
+    mgr = _get_manager()
+    if mgr is None:
         return 0
-    return _manager.count_contours(color)
+    return mgr.count_contours(color)
 
 def wait_for(color, timeout=30.0):
     """
     Wartet, bis mindestens eine Kontur dieser Farbe auf dem Bildschirm erscheint.
-    Simuliert während des Wartens natürliches Mausverhalten.
     Gibt True zurück, wenn sie erschienen ist, andernfalls False bei Timeout.
     """
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    contours, _ = _manager.wait_for_contour(color, timeout=timeout)
+    contours, _ = mgr.wait_for_contour(color, timeout=timeout)
     return len(contours) > 0
 
 def wait_for_disappear(color, timeout=30.0):
     """
     Wartet, bis alle Konturen dieser Farbe vom Bildschirm verschwinden.
-    Simuliert während des Wartens natürliches Mausverhalten.
     Gibt True zurück, wenn alle verschwunden sind, andernfalls False bei Timeout.
     """
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    return _manager.wait_for_contour_to_disappear(color, timeout=timeout)
+    return mgr.wait_for_contour_to_disappear(color, timeout=timeout)
 
 

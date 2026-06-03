@@ -1,6 +1,5 @@
 """
 Template-Bilderkennung für den RuneLite-Client.
-Nutzt ContourManager für Fensterfokus, Screenshot und Idle-Simulation.
 """
 import os
 import time
@@ -11,7 +10,7 @@ from PIL import ImageGrab
 import pyautogui
 
 from . import human_mouse
-from .osrs_api import ContourManager
+from .window_client import WindowClient
 
 
 class ImageManager:
@@ -22,7 +21,7 @@ class ImageManager:
     IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 
     def __init__(self, client=None, window_title="RuneLite"):
-        self._client = client or ContourManager(window_title=window_title)
+        self._client = client or WindowClient(window_title=window_title)
         self._template_cache = {}
 
     def focus_window(self):
@@ -215,7 +214,6 @@ class ImageManager:
                     f"after {time.time() - start_time:.2f}s."
                 )
                 return matches, offset
-            self._client.simulate_idle()
             time.sleep(check_interval)
 
         print(f"[-] Timeout: '{template_path}' did not appear within {timeout}s.")
@@ -234,7 +232,6 @@ class ImageManager:
                     f"after {time.time() - start_time:.2f}s."
                 )
                 return True
-            self._client.simulate_idle()
             time.sleep(check_interval)
 
         print(f"[-] Timeout: '{template_path}' did not disappear within {timeout}s.")
@@ -247,79 +244,81 @@ class ImageManager:
 _manager = None
 
 
-def start(window_title="RuneLite"):
-    """
-    Initialisiert Fensterfokus für Template-Bildsuche.
-    Muss einmal am Anfang aufgerufen werden.
-    """
+def _get_manager():
     global _manager
-    if _manager is not None:
-        print("[*] Image-API läuft bereits. Überspringe Initialisierung.")
-        return _manager.focus_window()
-    _manager = ImageManager(window_title=window_title)
-    success = _manager.focus_window()
-    if success:
-        print(f"[+] Image-API gestartet für Fenster: '{window_title}'")
-    else:
-        print(f"[!] Image-API Warnung: Fenster '{window_title}' konnte nicht fokussiert werden.")
+    from . import osrs_session
+    from .api_helpers import require_manager
+
+    _manager = require_manager(osrs_session.get_image_manager)
+    return _manager
+
+
+def start(window_title="RuneLite", tesseract_cmd=None):
+    """Startet die gemeinsame Session und bindet die Bild-API."""
+    global _manager
+    from . import osrs_session
+
+    success = osrs_session.start(window_title, tesseract_cmd=tesseract_cmd)
+    _manager = _get_manager()
     return success
 
 
 def click(template, index=0, threshold=0.8):
     """Klickt das Template am Index (Standard: 0 = bestes Match)."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    matches, offset = _manager.get_images_on_screen(template, threshold)
+    matches, offset = mgr.get_images_on_screen(template, threshold)
     if matches and len(matches) > index:
-        return _manager.click_image(matches[index], template, offset, threshold=threshold)
+        return mgr.click_image(matches[index], template, offset, threshold=threshold)
     return False
 
 
 def click_random(template, threshold=0.8):
     """Klickt ein zufällig gewähltes Template-Vorkommen."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    matches, offset = _manager.get_images_on_screen(template, threshold)
+    matches, offset = mgr.get_images_on_screen(template, threshold)
     if matches:
         m = random.choice(matches)
-        return _manager.click_image(m, template, offset, threshold=threshold)
+        return mgr.click_image(m, template, offset, threshold=threshold)
     return False
 
 
 def click_all(template, delay_between_clicks=0.0, threshold=0.8):
     """Klickt alle sichtbaren Vorkommen (Fast-Mode). Gibt Anzahl Klicks zurück."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return 0
-    return _manager.click_all_images(
+    return mgr.click_all_images(
         template, threshold=threshold, delay_between_clicks=delay_between_clicks
     )
 
 
 def count(template, threshold=0.8):
     """Anzahl sichtbarer Template-Vorkommen."""
-    if _manager is None:
+    mgr = _get_manager()
+    if mgr is None:
         return 0
-    return _manager.count_images(template, threshold)
+    return mgr.count_images(template, threshold)
 
 
 def wait_for(template, timeout=30.0, threshold=0.8):
     """Wartet bis mindestens ein Vorkommen erscheint. True bei Erfolg."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    matches, _ = _manager.wait_for_image(template, threshold=threshold, timeout=timeout)
+    matches, _ = mgr.wait_for_image(template, threshold=threshold, timeout=timeout)
     return len(matches) > 0
 
 
 def wait_for_disappear(template, timeout=30.0, threshold=0.8):
     """Wartet bis alle Vorkommen verschwunden sind."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    return _manager.wait_for_image_to_disappear(template, threshold=threshold, timeout=timeout)
+    return mgr.wait_for_image_to_disappear(template, threshold=threshold, timeout=timeout)
 
 
 def wait_till_gone(template, timeout=30.0, threshold=0.8):

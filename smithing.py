@@ -1,7 +1,7 @@
 import random
 import time
 import pyautogui
-import modules.osrs_api as api
+import modules.osrs_color as api
 
 def run_sequence():
     # 1. Spielfenster fokussieren und API starten
@@ -25,7 +25,7 @@ def run_sequence():
     time.sleep(random.uniform(0.3, 0.7))
 
     # time.sleep(random.uniform(4.5, 5.5))
-    print("[*] Warte ~5 Sekunden (mit natürlicher Mausaktivität)...")
+    print("[*] Warte ~5 Sekunden...")
     time.sleep(random.uniform(5.5, 6.5))
 
     # pyautogui.press('space')
@@ -44,7 +44,7 @@ def run_sequence():
     api.click("blue")
     
     # time.sleep(random.uniform(4.5, 5.5))
-    print("[*] Warte ~5 Sekunden (mit natürlicher Mausaktivität)...")
+    print("[*] Warte ~5 Sekunden...")
     time.sleep(random.uniform(5.5, 6.5))
     
     print("[+] Sequenz erfolgreich beendet!")

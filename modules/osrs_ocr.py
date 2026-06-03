@@ -1,6 +1,5 @@
 """
 OCR-Textsuche im RuneLite-Client (Tesseract).
-Nutzt ContourManager für Fensterfokus, Screenshot und Idle-Simulation.
 
 Tesseract muss installiert sein:
   Windows: https://github.com/UB-Mannheim/tesseract/wiki
@@ -16,7 +15,7 @@ from PIL import ImageGrab
 import pyautogui
 
 from . import human_mouse
-from .osrs_api import ContourManager
+from .window_client import WindowClient
 
 try:
     import pytesseract
@@ -34,7 +33,7 @@ class OcrManager:
     """
 
     def __init__(self, client=None, window_title="RuneLite", tesseract_cmd=None):
-        self._client = client or ContourManager(window_title=window_title)
+        self._client = client or WindowClient(window_title=window_title)
         self._scale = 2
         self._tesseract_config = "--psm 6"
         self._configure_tesseract(tesseract_cmd)
@@ -392,7 +391,6 @@ class OcrManager:
                     f"{time.time() - start_time:.2f}s."
                 )
                 return matches, offset
-            self._client.simulate_idle()
             time.sleep(check_interval)
 
         print(f"[-] Timeout: Text '{query}' nicht innerhalb von {timeout}s erschienen.")
@@ -423,7 +421,6 @@ class OcrManager:
                     f"[+] Text '{query}' weg nach {time.time() - start_time:.2f}s."
                 )
                 return True
-            self._client.simulate_idle()
             time.sleep(check_interval)
 
         print(f"[-] Timeout: Text '{query}' noch nach {timeout}s sichtbar.")
@@ -436,18 +433,22 @@ class OcrManager:
 _manager = None
 
 
-def start(window_title="RuneLite", tesseract_cmd=None):
-    """Initialisiert Fensterfokus für OCR. Einmal am Anfang aufrufen."""
+def _get_manager():
     global _manager
-    if _manager is not None:
-        print("[*] OCR-API läuft bereits. Überspringe Initialisierung.")
-        return _manager.focus_window()
-    _manager = OcrManager(window_title=window_title, tesseract_cmd=tesseract_cmd)
-    success = _manager.focus_window()
-    if success:
-        print(f"[+] OCR-API gestartet für Fenster: '{window_title}'")
-    else:
-        print(f"[!] OCR-API Warnung: Fenster '{window_title}' konnte nicht fokussiert werden.")
+    from . import osrs_session
+    from .api_helpers import require_manager
+
+    _manager = require_manager(osrs_session.get_ocr_manager)
+    return _manager
+
+
+def start(window_title="RuneLite", tesseract_cmd=None):
+    """Startet die gemeinsame Session und bindet die OCR-API."""
+    global _manager
+    from . import osrs_session
+
+    success = osrs_session.start(window_title, tesseract_cmd=tesseract_cmd)
+    _manager = _get_manager()
     return success
 
 
@@ -460,10 +461,10 @@ def click(
     region=None,
 ):
     """Klickt den Text-Treffer am Index (0 = bester Treffer)."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    matches, offset = _manager.get_text_on_screen(
+    matches, offset = mgr.get_text_on_screen(
         text,
         min_conf=min_conf,
         partial=partial,
@@ -471,7 +472,7 @@ def click(
         region=region,
     )
     if matches and len(matches) > index:
-        return _manager.click_text(
+        return mgr.click_text(
             matches[index],
             text,
             offset,
@@ -491,10 +492,10 @@ def click_random(
     region=None,
 ):
     """Klickt einen zufälligen Text-Treffer."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    matches, offset = _manager.get_text_on_screen(
+    matches, offset = mgr.get_text_on_screen(
         text,
         min_conf=min_conf,
         partial=partial,
@@ -503,7 +504,7 @@ def click_random(
     )
     if matches:
         m = random.choice(matches)
-        return _manager.click_text(
+        return mgr.click_text(
             m,
             text,
             offset,
@@ -524,10 +525,10 @@ def click_all(
     region=None,
 ):
     """Klickt alle sichtbaren Text-Treffer (Fast-Mode)."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return 0
-    return _manager.click_all_text(
+    return mgr.click_all_text(
         text,
         min_conf=min_conf,
         partial=partial,
@@ -545,9 +546,10 @@ def count(
     region=None,
 ):
     """Anzahl sichtbarer Text-Treffer."""
-    if _manager is None:
+    mgr = _get_manager()
+    if mgr is None:
         return 0
-    return _manager.count_text(
+    return mgr.count_text(
         text,
         min_conf=min_conf,
         partial=partial,
@@ -565,10 +567,10 @@ def wait_for(
     region=None,
 ):
     """Wartet bis mindestens ein Treffer erscheint."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    matches, _ = _manager.wait_for_text(
+    matches, _ = mgr.wait_for_text(
         text,
         min_conf=min_conf,
         partial=partial,
@@ -588,10 +590,10 @@ def wait_for_disappear(
     region=None,
 ):
     """Wartet bis alle Treffer verschwunden sind."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return False
-    return _manager.wait_for_text_to_disappear(
+    return mgr.wait_for_text_to_disappear(
         text,
         min_conf=min_conf,
         partial=partial,
@@ -622,7 +624,7 @@ def wait_till_gone(
 
 def read(min_conf=60, region=None):
     """Liest allen erkannten Text im Client (Liste von Strings)."""
-    if _manager is None:
-        print("[!] Fehler: Bitte rufe zuerst 'start()' auf.")
+    mgr = _get_manager()
+    if mgr is None:
         return []
-    return _manager.read_screen(min_conf=min_conf, region=region)
+    return mgr.read_screen(min_conf=min_conf, region=region)
