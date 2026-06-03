@@ -60,7 +60,7 @@ def main():
                 print("[*] Suche nach Konturen...")
                 img, _ = manager.capture_client_area()
                 if img is not None:
-                    for color in ["blue", "green", "magenta", "yellow", "red"]:
+                    for color in ContourManager.COLOR_MAP:
                         contours = manager.find_contours(img, color)
                         if len(contours) > 0:
                             print(f"  -> {color.upper()}: {len(contours)} Konturen gefunden")

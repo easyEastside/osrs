@@ -16,13 +16,15 @@ class ContourManager:
     Erkennt farbige Konturen im RuneLite-Client und klickt sie menschlich an.
     """
 
+    # BGR – 7 Farben: je Kanal nur 0 oder 255, insgesamt 1–3 Kanäle mit 255
     COLOR_MAP = {
-        "blue": [255, 0, 0],
-        "green": [0, 255, 0],
-        "magenta": [255, 0, 255],
-        "pink": [255, 0, 255],
-        "yellow": [0, 255, 255],
         "red": [0, 0, 255],
+        "green": [0, 255, 0],
+        "blue": [255, 0, 0],
+        "yellow": [0, 255, 255],
+        "cyan": [255, 255, 0],
+        "pink": [255, 0, 255],
+        "white": [255, 255, 255],
     }
 
     def __init__(self, client=None, window_title="RuneLite"):

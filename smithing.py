@@ -15,8 +15,6 @@ def run_sequence():
     api.click("green")
     time.sleep(random.uniform(0.3, 0.7))
 
-    # click_first_contour(*PINK)
-    # ("pink" ist als Alias für "magenta" hinterlegt)
     api.click("pink")
     time.sleep(random.uniform(0.3, 0.7))
 

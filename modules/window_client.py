@@ -3,6 +3,7 @@ Gemeinsame Fenster- und Screenshot-Logik für RuneLite (Windows/Linux).
 Wird von osrs_color, osrs_image und osrs_ocr genutzt.
 """
 import platform
+import shutil
 import time
 import random
 import subprocess
@@ -28,6 +29,14 @@ if IS_WINDOWS:
     import win32gui
     import win32con
     import pygetwindow as gw
+
+_linux_tool_cache = {}
+
+
+def _linux_has(tool):
+    if tool not in _linux_tool_cache:
+        _linux_tool_cache[tool] = shutil.which(tool) is not None
+    return _linux_tool_cache[tool]
 
 
 class WindowClient:
@@ -55,28 +64,32 @@ class WindowClient:
             return None
 
         if IS_LINUX:
-            try:
-                out = subprocess.check_output(
-                    ["xdotool", "search", "--onlyvisible", "--name", self.window_title],
-                    stderr=subprocess.DEVNULL,
-                ).decode().strip()
-                ids = out.split()
-                if ids:
-                    return ids[0]
-            except (subprocess.CalledProcessError, FileNotFoundError, OSError) as e:
-                print(f"[!] xdotool nicht verfügbar oder fehlgeschlagen: {e}")
+            if _linux_has("xdotool"):
+                try:
+                    out = subprocess.check_output(
+                        ["xdotool", "search", "--onlyvisible", "--name", self.window_title],
+                        stderr=subprocess.DEVNULL,
+                    ).decode().strip()
+                    ids = out.split()
+                    if ids:
+                        return ids[0]
+                except (subprocess.CalledProcessError, OSError):
+                    pass
 
-            try:
-                out = subprocess.check_output(
-                    ["wmctrl", "-l"], stderr=subprocess.DEVNULL
-                ).decode()
-                for line in out.splitlines():
-                    if self.window_title.lower() in line.lower():
-                        parts = line.split(None, 3)
-                        if parts:
-                            return parts[0]
-            except (subprocess.CalledProcessError, FileNotFoundError, OSError) as e:
-                print(f"[!] wmctrl nicht verfügbar oder fehlgeschlagen: {e}")
+            if _linux_has("wmctrl"):
+                try:
+                    out = subprocess.check_output(
+                        ["wmctrl", "-l"], stderr=subprocess.DEVNULL
+                    ).decode()
+                    for line in out.splitlines():
+                        if self.window_title.lower() in line.lower():
+                            parts = line.split(None, 3)
+                            if parts:
+                                return parts[0]
+                except (subprocess.CalledProcessError, OSError) as e:
+                    print(f"[!] wmctrl fehlgeschlagen: {e}")
+            elif not _linux_has("xdotool"):
+                print("[!] Linux: weder xdotool noch wmctrl gefunden. Bitte installieren: sudo apt install wmctrl")
             return None
 
         print(f"[!] Unsupported operating system: {platform.system()}")
@@ -115,27 +128,33 @@ class WindowClient:
                     return False
 
         if IS_LINUX:
-            try:
-                subprocess.check_call(
-                    ["xdotool", "windowactivate", hwnd],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                time.sleep(random.uniform(0.5, 0.8))
-                return True
-            except (subprocess.CalledProcessError, FileNotFoundError, OSError) as e:
-                print(f"[!] xdotool windowactivate fehlgeschlagen: {e}")
-            try:
-                subprocess.check_call(
-                    ["wmctrl", "-i", "-a", hwnd],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                time.sleep(random.uniform(0.5, 0.8))
-                return True
-            except Exception as e:
-                print(f"[!] Error focusing window on Linux: {e}")
-                return False
+            if _linux_has("xdotool"):
+                try:
+                    subprocess.check_call(
+                        ["xdotool", "windowactivate", hwnd],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    time.sleep(random.uniform(0.5, 0.8))
+                    return True
+                except (subprocess.CalledProcessError, OSError):
+                    pass
+
+            if _linux_has("wmctrl"):
+                try:
+                    subprocess.check_call(
+                        ["wmctrl", "-i", "-a", hwnd],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    time.sleep(random.uniform(0.5, 0.8))
+                    return True
+                except Exception as e:
+                    print(f"[!] wmctrl focus fehlgeschlagen: {e}")
+                    return False
+
+            print("[!] Fenster fokussieren auf Linux nicht möglich (wmctrl/xdotool fehlt).")
+            return False
 
         return False
 
@@ -155,35 +174,39 @@ class WindowClient:
                 return None
 
         if IS_LINUX:
-            try:
-                out = subprocess.check_output(
-                    ["xdotool", "getwindowgeometry", hwnd], stderr=subprocess.DEVNULL
-                ).decode()
-                pos_match = re.search(r"Position:\s*(\d+),(\d+)", out)
-                geom_match = re.search(r"Geometry:\s*(\d+)x(\d+)", out)
-                if pos_match and geom_match:
-                    left, top = int(pos_match.group(1)), int(pos_match.group(2))
-                    width, height = int(geom_match.group(1)), int(geom_match.group(2))
-                    return (left, top, left + width, top + height)
-            except (subprocess.CalledProcessError, FileNotFoundError, OSError) as e:
-                print(f"[!] xdotool getwindowgeometry fehlgeschlagen: {e}")
+            if _linux_has("xdotool"):
+                try:
+                    out = subprocess.check_output(
+                        ["xdotool", "getwindowgeometry", hwnd], stderr=subprocess.DEVNULL
+                    ).decode()
+                    pos_match = re.search(r"Position:\s*(\d+),(\d+)", out)
+                    geom_match = re.search(r"Geometry:\s*(\d+)x(\d+)", out)
+                    if pos_match and geom_match:
+                        left, top = int(pos_match.group(1)), int(pos_match.group(2))
+                        width, height = int(geom_match.group(1)), int(geom_match.group(2))
+                        return (left, top, left + width, top + height)
+                except (subprocess.CalledProcessError, OSError):
+                    pass
 
-            try:
-                out = subprocess.check_output(
-                    ["xwininfo", "-id", hwnd], stderr=subprocess.DEVNULL
-                ).decode()
-                x_match = re.search(r"Absolute upper-left X:\s*(\d+)", out)
-                y_match = re.search(r"Absolute upper-left Y:\s*(\d+)", out)
-                w_match = re.search(r"Width:\s*(\d+)", out)
-                h_match = re.search(r"Height:\s*(\d+)", out)
-                if x_match and y_match and w_match and h_match:
-                    left = int(x_match.group(1))
-                    top = int(y_match.group(1))
-                    width = int(w_match.group(1))
-                    height = int(h_match.group(1))
-                    return (left, top, left + width, top + height)
-            except Exception as e:
-                print(f"[!] Error getting window geometry on Linux: {e}")
+            if _linux_has("xwininfo"):
+                try:
+                    out = subprocess.check_output(
+                        ["xwininfo", "-id", hwnd], stderr=subprocess.DEVNULL
+                    ).decode()
+                    x_match = re.search(r"Absolute upper-left X:\s*(\d+)", out)
+                    y_match = re.search(r"Absolute upper-left Y:\s*(\d+)", out)
+                    w_match = re.search(r"Width:\s*(\d+)", out)
+                    h_match = re.search(r"Height:\s*(\d+)", out)
+                    if x_match and y_match and w_match and h_match:
+                        left = int(x_match.group(1))
+                        top = int(y_match.group(1))
+                        width = int(w_match.group(1))
+                        height = int(h_match.group(1))
+                        return (left, top, left + width, top + height)
+                except Exception as e:
+                    print(f"[!] xwininfo fehlgeschlagen: {e}")
+            elif not _linux_has("xdotool"):
+                print("[!] Linux: xwininfo nicht gefunden. Bitte installieren: sudo apt install x11-utils")
 
             return None
 
