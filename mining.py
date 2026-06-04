@@ -8,7 +8,7 @@ def run_sequence():
 
     print("[*] Starte Mining-Sequenz...")
 
-    if api.count("pink") == 28:
+    if api.count("pink") == 27:
         #clicked = api.click_all("pink")
         #if clicked == 0:
         #    print("[!] click_all('pink') hat nichts geklickt.")
