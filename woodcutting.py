@@ -3,7 +3,7 @@ import modules.osrs_color as api
 import time
 
 def run_sequence():
-    if not api.start(window_title="RuneLite - Freund"):
+    if not api.start(window_title="RuneLite - Trader Mirco"):
         return
 
     print("[*] Starte Woodcutting-Sequenz...")
