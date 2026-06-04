@@ -15,8 +15,8 @@ def run_sequence():
                 print("[!] click_all('pink') hat nichts geklickt.")
             time.sleep(random.uniform(0.2, 0.5))
             continue
-        
-        if not api.click("yellow"):
+
+        if not api.click_random("yellow"):
             print("[!] Klick auf 'yellow' fehlgeschlagen.")
             time.sleep(random.uniform(0.3, 0.7))
             continue
