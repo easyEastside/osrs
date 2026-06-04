@@ -9,6 +9,13 @@ def run_sequence():
     print("[*] Starte Woodcutting-Sequenz...")
 
     while True:
+        if api.count("pink") == 28:
+            clicked = api.click_all("pink")
+            if clicked == 0:
+                print("[!] click_all('pink') hat nichts geklickt.")
+            time.sleep(random.uniform(0.2, 0.5))
+            continue
+        
         if not api.click("yellow"):
             print("[!] Klick auf 'yellow' fehlgeschlagen.")
             time.sleep(random.uniform(0.3, 0.7))
