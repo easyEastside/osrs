@@ -9,10 +9,11 @@ def run_sequence():
     print("[*] Starte Mining-Sequenz...")
 
     if api.count("pink") == 28:
-        clicked = api.click_all("pink")
-        if clicked == 0:
-            print("[!] click_all('pink') hat nichts geklickt.")
-        time.sleep(random.uniform(0.2, 0.5))
+        #clicked = api.click_all("pink")
+        #if clicked == 0:
+        #    print("[!] click_all('pink') hat nichts geklickt.")
+        #time.sleep(random.uniform(0.2, 0.5))
+        time.sleep(random.uniform(1000, 2000))
 
     if not api.click_random("yellow"):
         print("[!] Klick auf 'yellow' fehlgeschlagen.")
